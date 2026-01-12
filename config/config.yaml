@@ -1,0 +1,16 @@
+paths:
+  input: "data/input/sales_data.csv"
+  output: "data/output/processed_sales.csv"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "etl.log"
+
+transform:
+  critical_columns:
+    - "order_id"
+    - "date"
+    - "product_id"
+    - "quantity"
+    - "price"
