@@ -32,7 +32,7 @@ This project implements a robust, production-style Extract, Transform, Load (ETL
 To run the ETL pipeline:
 
 ```bash
-python src/etl.py --config config/config.yaml
+python -m src.etl --config config/config.yaml
 ```
 
 The pipeline will:
