@@ -3,77 +3,124 @@ import numpy as np
 import os
 import logging
 from datetime import datetime, timedelta
+from faker import Faker
+from typing import List, Dict, Any
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('DataExtractor')
 
-def generate_mock_data(output_dir: str):
-    """Generates mock CSV data for Orders, Customers, and Products."""
-    try:
-        # Create output directory if it doesn't exist
-        os.makedirs(output_dir, exist_ok=True)
+class DataExtractor:
+    """Class responsible for generating and extracting mock e-commerce data."""
 
-        num_customers = 100
-        num_products = 50
-        num_orders = 1000
+    def __init__(self, output_dir: str, num_customers: int = 500, num_products: int = 100, num_orders: int = 5000):
+        self.output_dir = output_dir
+        self.num_customers = num_customers
+        self.num_products = num_products
+        self.num_orders = num_orders
+        self.fake = Faker()
 
-        # 1. Generate Customers
-        logger.info("Generating Customers data...")
-        customer_ids = range(1, num_customers + 1)
-        customers_df = pd.DataFrame({
-            'customer_id': customer_ids,
-            'name': [f'Customer_{i}' for i in customer_ids],
-            'email': [f'customer_{i}@example.com' for i in customer_ids],
-            'signup_date': pd.date_range(start='2023-01-01', periods=num_customers, freq='D')
-        })
-        customers_path = os.path.join(output_dir, 'customers.csv')
-        customers_df.to_csv(customers_path, index=False)
-        logger.info(f"Saved customers to {customers_path}")
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
 
-        # 2. Generate Products
-        logger.info("Generating Products data...")
-        product_ids = range(1, num_products + 1)
-        categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys']
-        products_df = pd.DataFrame({
-            'product_id': product_ids,
-            'product_name': [f'Product_{i}' for i in product_ids],
-            'category': np.random.choice(categories, num_products),
-            'price': np.round(np.random.uniform(10.0, 500.0, num_products), 2)
-        })
-        products_path = os.path.join(output_dir, 'products.csv')
-        products_df.to_csv(products_path, index=False)
-        logger.info(f"Saved products to {products_path}")
+    def generate_customers(self) -> None:
+        """Generates realistic customer data using Faker."""
+        logger.info(f"Generating {self.num_customers} customers...")
+        try:
+            customers = []
+            for i in range(1, self.num_customers + 1):
+                customers.append({
+                    'customer_id': i,
+                    'name': self.fake.name(),
+                    'email': self.fake.email(),
+                    'segment': np.random.choice(['Retail', 'Wholesale', 'Corporate', 'Guest'], p=[0.6, 0.2, 0.1, 0.1]),
+                    'signup_date': self.fake.date_between(start_date='-2y', end_date='today')
+                })
 
-        # 3. Generate Orders
-        logger.info("Generating Orders data...")
-        # Generate dates over the last 30 days
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
+            df = pd.DataFrame(customers)
+            output_path = os.path.join(self.output_dir, 'customers.csv')
+            df.to_csv(output_path, index=False)
+            logger.info(f"Successfully saved customers to {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to generate customers: {e}")
+            raise
 
-        # Random dates between start and end
-        random_dates = [start_date + timedelta(seconds=np.random.randint(0, int((end_date - start_date).total_seconds()))) for _ in range(num_orders)]
+    def generate_products(self) -> None:
+        """Generates product data with realistic categories."""
+        logger.info(f"Generating {self.num_products} products...")
+        try:
+            categories = ['Electronics', 'Clothing', 'Home & Garden', 'Books', 'Sports & Outdoors', 'Beauty', 'Toys']
+            products = []
+            for i in range(1, self.num_products + 1):
+                products.append({
+                    'product_id': i,
+                    'product_name': f"{self.fake.word().capitalize()} {self.fake.word().capitalize()}",
+                    'category': np.random.choice(categories),
+                    'price': round(np.random.uniform(5.0, 1000.0), 2)
+                })
 
-        orders_df = pd.DataFrame({
-            'order_id': range(1, num_orders + 1),
-            'customer_id': np.random.choice(customer_ids, num_orders),
-            'product_id': np.random.choice(product_ids, num_orders),
-            'order_date': random_dates,
-            'quantity': np.random.randint(1, 5, num_orders)
-        })
-        orders_path = os.path.join(output_dir, 'orders.csv')
-        orders_df.to_csv(orders_path, index=False)
-        logger.info(f"Saved orders to {orders_path}")
+            df = pd.DataFrame(products)
+            output_path = os.path.join(self.output_dir, 'products.csv')
+            df.to_csv(output_path, index=False)
+            logger.info(f"Successfully saved products to {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to generate products: {e}")
+            raise
 
-        logger.info("Mock data generation completed successfully.")
+    def generate_orders(self, batch_size: int = 1000) -> None:
+        """Generates order data and writes to CSV in batches to simulate large datasets."""
+        logger.info(f"Generating {self.num_orders} orders in batches of {batch_size}...")
+        try:
+            output_path = os.path.join(self.output_dir, 'orders.csv')
 
-    except Exception as e:
-        logger.error(f"Error generating mock data: {str(e)}")
-        raise
+            # Remove file if it exists
+            if os.path.exists(output_path):
+                os.remove(output_path)
+
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=365) # 1 year of data
+
+            customer_ids = range(1, self.num_customers + 1)
+            product_ids = range(1, self.num_products + 1)
+
+            total_generated = 0
+            while total_generated < self.num_orders:
+                current_batch_size = min(batch_size, self.num_orders - total_generated)
+
+                # Generate random dates for the batch
+                random_dates = [start_date + timedelta(seconds=np.random.randint(0, int((end_date - start_date).total_seconds()))) for _ in range(current_batch_size)]
+
+                batch_data = pd.DataFrame({
+                    'order_id': range(total_generated + 1, total_generated + current_batch_size + 1),
+                    'customer_id': np.random.choice(customer_ids, current_batch_size),
+                    'product_id': np.random.choice(product_ids, current_batch_size),
+                    'order_date': random_dates,
+                    'quantity': np.random.randint(1, 10, current_batch_size) # 1 to 9 items
+                })
+
+                # Append to CSV
+                header = total_generated == 0
+                batch_data.to_csv(output_path, mode='a', index=False, header=header)
+
+                total_generated += current_batch_size
+                logger.info(f"Wrote batch of {current_batch_size} orders. Progress: {total_generated}/{self.num_orders}")
+
+            logger.info(f"Successfully saved all orders to {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to generate orders: {e}")
+            raise
+
+    def run_extraction(self) -> None:
+        """Runs the full extraction process."""
+        logger.info("Starting data extraction process...")
+        self.generate_customers()
+        self.generate_products()
+        self.generate_orders()
+        logger.info("Data extraction process completed successfully.")
 
 if __name__ == "__main__":
-    # When running locally from the script dir, output goes to ../data/raw/
-    # In airflow docker, it maps to /opt/airflow/data/raw/
     current_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.environ.get('RAW_DATA_DIR', os.path.join(current_dir, '..', 'data', 'raw'))
-    generate_mock_data(output_dir)
+
+    extractor = DataExtractor(output_dir=output_dir, num_customers=1000, num_products=200, num_orders=10000)
+    extractor.run_extraction()

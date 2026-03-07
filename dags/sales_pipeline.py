@@ -1,8 +1,9 @@
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-import os
 
 default_args = {
     'owner': 'airflow',
@@ -18,32 +19,41 @@ default_args = {
 with DAG(
     'sales_pipeline',
     default_args=default_args,
-    description='A simple ETL pipeline for sales data',
+    description='A production-ready ETL pipeline for sales data',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['sales', 'etl'],
+    tags=['sales', 'etl', 'production'],
 ) as dag:
 
-    # Task 1: Run the extraction script
-    # Inside the Airflow container, directories are mapped to /opt/airflow/...
-    extract_task = BashOperator(
-        task_id='extract_data',
-        bash_command='python3 /opt/airflow/scripts/extract.py',
-        env={
-            'RAW_DATA_DIR': '/opt/airflow/data/raw'
-        }
-    )
+    # Start and End Markers
+    start_pipeline = EmptyOperator(task_id='start_pipeline')
+    end_pipeline = EmptyOperator(task_id='end_pipeline')
 
-    # Task 2: Run the transformation script
-    transform_task = BashOperator(
-        task_id='transform_data',
-        bash_command='python3 /opt/airflow/scripts/transform.py',
-        env={
-            'DUCKDB_PATH': '/opt/airflow/data/processed/sales.db',
-            'RAW_DATA_DIR': '/opt/airflow/data/raw',
-            'SQL_FILE_PATH': '/opt/airflow/sql/transform.sql'
-        }
-    )
+    # Task Group for Ingestion
+    with TaskGroup(group_id='ingestion_layer', tooltip='Extracts mock e-commerce data') as ingestion_layer:
+
+        extract_data = BashOperator(
+            task_id='extract_data',
+            bash_command='python3 /opt/airflow/scripts/extract.py',
+            env={
+                'RAW_DATA_DIR': '/opt/airflow/data/raw'
+            },
+            append_env=True
+        )
+
+    # Task Group for Transformation and Validation
+    with TaskGroup(group_id='transformation_layer', tooltip='Validates data and calculates business metrics') as transformation_layer:
+
+        transform_data = BashOperator(
+            task_id='transform_data',
+            bash_command='python3 /opt/airflow/scripts/transform.py',
+            env={
+                'DUCKDB_PATH': '/opt/airflow/data/processed/sales.db',
+                'RAW_DATA_DIR': '/opt/airflow/data/raw',
+                'SQL_FILE_PATH': '/opt/airflow/sql/transform.sql'
+            },
+            append_env=True
+        )
 
     # Define dependencies
-    extract_task >> transform_task
+    start_pipeline >> ingestion_layer >> transformation_layer >> end_pipeline
