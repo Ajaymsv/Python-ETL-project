@@ -9,6 +9,7 @@ venv.bak/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 
@@ -16,11 +17,13 @@ __pycache__/
 logs/
 airflow-webserver.pid
 airflow-webserver.err
+*.log
 
 # Docker
 .docker/
 
 # Data directories (raw and processed data)
+data/output/
 data/raw/*.csv
 data/processed/*.db
 data/processed/*.db.wal
