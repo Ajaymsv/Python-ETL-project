@@ -1,0 +1,36 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Airflow
+logs/
+airflow-webserver.pid
+airflow-webserver.err
+
+# Docker
+.docker/
+
+# Data directories (raw and processed data)
+data/raw/*.csv
+data/processed/*.db
+data/processed/*.db.wal
+data/processed/*.tmp
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
